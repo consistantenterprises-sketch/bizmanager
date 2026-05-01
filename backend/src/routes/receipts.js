@@ -47,7 +47,7 @@ router.patch('/:id', async (req, res) => {
     if (!doc.exists) return res.status(404).json({ error: 'Receipt not found' });
     // Only admin can edit non-payment fields
     const { amtPaid, balance, ...rest } = req.body;
-    let updates = { amtPaid, balance, updatedAt: new Date().toISOString() };
+   let updates = { balance, updatedAt: new Date().toISOString() };
     if (req.user.role === 'admin') updates = { ...updates, ...rest };
     await db.collection('receipts').doc(req.params.id).update(updates);
     res.json({ success: true });

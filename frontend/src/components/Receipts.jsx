@@ -141,7 +141,7 @@ function AddReceiptModal({onClose,onSaved,receipts,customers,role,branch}){
         if(parseFloat(exAmount)>(selReceipt?.balance||0)){notify('Payment exceeds balance');setSaving(false);return;}
         const newPaid=(selReceipt.amtPaid||0)+parseFloat(exAmount);
         const newBal=Math.max(0,(selReceipt.balance||0)-parseFloat(exAmount));
-        await receiptsApi.update(selReceiptId,{amtPaid:newPaid,balance:newBal});
+await receiptsApi.update(selReceiptId,{balance:newBal});
         const cust=customers.find(c=>c.id===selCust.id);
         if(cust)await customersApi.update(cust.id,{totalPaid:(cust.totalPaid||0)+parseFloat(exAmount)});
         await receiptsApi.create({date:exDate,billNo:selReceipt.billNo,custId:selCust.id,name:selCust.name,village:selCust.village,mandal:selCust.mandal,model:selReceipt.model,models:selReceipt.models,soldPrice:selReceipt.soldPrice,amtPaid:parseFloat(exAmount),balance:newBal,mode:exMode,bank:exMode==='Bank transfer'?exBank:'',utr:exMode==='Bank transfer'?exUtr:'',branch:selCust.branch,isPayment:true});
