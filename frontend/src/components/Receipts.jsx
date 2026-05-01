@@ -130,9 +130,9 @@ function AddReceiptModal({onClose,onSaved,receipts,customers,role,branch}){
         if(!payMode){notify('Select payment mode');setSaving(false);return;}
         if(role==='branch_manager'&&date<today()){notify('Branch managers cannot backdate receipts');setSaving(false);return;}
         const modelSummary=modelRows.map(r=>r.model+(r.qty>1?' x'+r.qty:'')).join(', ');
-        const custId=Date.now().toString();
-        await customersApi.create({id:custId,date,billNo,name,phone,village,mandal,model:modelSummary,soldPrice:grand,totalPaid:parseFloat(paid)||0,branch:custBranch,status:'Pending',deliveredDate:null,models:modelRows});
-        await receiptsApi.create({date,billNo,custId,name,village,mandal,model:modelSummary,models:modelRows,soldPrice:grand,amtPaid:parseFloat(paid)||0,balance,mode:payMode,bank:payMode==='Bank transfer'?bank:'',utr:payMode==='Bank transfer'?utr:'',branch:custBranch,isPayment:false});
+       const custRef = await customersApi.create({date,billNo,name,phone,village,mandal,model:modelSummary,soldPrice:grand,totalPaid:parseFloat(paid)||0,branch:custBranch,status:'Pending',deliveredDate:null,models:modelRows});
+const custId = custRef.id;
+await receiptsApi.create({date,billNo,custId,name,village,mandal,model:modelSummary,models:modelRows,soldPrice:grand,amtPaid:parseFloat(paid)||0,balance,mode:payMode,bank:payMode==='Bank transfer'?bank:'',utr:payMode==='Bank transfer'?utr:'',branch:custBranch,isPayment:false});
         notify('Receipt saved! Bill: '+billNo);
       }
       onSaved();
