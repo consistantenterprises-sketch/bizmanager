@@ -1,7 +1,7 @@
 import{useState,useEffect}from'react';
 import{receiptsApi,customersApi,stockApi}from'../lib/api';
 import{useAuth}from'../context/AuthContext';
-import{fmt,today,getNextBillNo,BRANCHES,isTrolley}from'../lib/utils';
+import{fmt,today,getNextBillNo,BRANCHES}from'../lib/utils';
 import{notify,Btn,Badge,Modal,Field,Input,Select,Grid2,ModalActions,Stats,FilterBar,FInput,FSelect,FSep,Table,TR,TD,SectionHeader,Loading,exportCSV}from'./ui';
 export default function Receipts(){
   const{role,branch}=useAuth();
@@ -41,9 +41,9 @@ export default function Receipts(){
     />
     <Stats items={[
       {label:'Bills',value:origBills.length},
-      {label:'Total sold',value:'₹'+fmt(origBills.reduce((s,r)=>s+(r.soldPrice||0),0))},
-      {label:'Collected',value:'₹'+fmt(origBills.reduce((s,r)=>s+(r.amtPaid||0),0)+payRows.reduce((s,r)=>s+(r.amtPaid||0),0)),color:'#27500A'},
-      {label:'Balance',value:'₹'+fmt(origBills.reduce((s,r)=>s+(r.balance||0),0)),color:'#A32D2D'},
+      {label:'Total sold',value:'Rs'+fmt(origBills.reduce((s,r)=>s+(r.soldPrice||0),0))},
+      {label:'Collected',value:'Rs'+fmt(origBills.reduce((s,r)=>s+(r.amtPaid||0),0)+payRows.reduce((s,r)=>s+(r.amtPaid||0),0)),color:'#27500A'},
+      {label:'Balance',value:'Rs'+fmt(origBills.reduce((s,r)=>s+(r.balance||0),0)),color:'#A32D2D'},
     ]}/>
     <FilterBar>
       <FInput value={search} onChange={setSearch} placeholder="Search bill / name..."/>
@@ -60,17 +60,22 @@ export default function Receipts(){
           <TD>{r.date}</TD>
           <TD style={{fontWeight:500}}>{r.billNo}</TD>
           <TD>{r.name}</TD>
-          <TD style={{fontSize:11,color:'#706f6b'}}>{r.village||'—'}, {r.mandal||'—'}</TD>
+          <TD style={{fontSize:11,color:'#706f6b'}}>{r.village||'--'}, {r.mandal||'--'}</TD>
           <TD style={{fontSize:11}}>{r.model}</TD>
-          <TD>₹{fmt(r.soldPrice)}</TD>
-          <TD style={{color:'#27500A',fontWeight:500}}>₹{fmt(r.amtPaid)}</TD>
-          <TD style={{color:r.balance>0?'#A32D2D':'#27500A',fontWeight:500}}>₹{fmt(r.balance)}</TD>
+          <TD>Rs{fmt(r.soldPrice)}</TD>
+          <TD style={{color:'#27500A',fontWeight:500}}>Rs{fmt(r.amtPaid)}</TD>
+          <TD style={{color:r.balance>0?'#A32D2D':'#27500A',fontWeight:500}}>Rs{fmt(r.balance)}</TD>
           <TD><Badge label={r.mode==='Cash'?'Cash':'Bank transfer'}/></TD>
           <TD style={{fontSize:11}}>{r.branch}</TD>
-          <TD><div style={{display:'flex',gap:3}}>
-            <Btn variant="i" style={{fontSize:10,padding:'2px 7px'}} onClick={()=>setShowView(r)}>View</Btn>
-            {role==='admin'&&<><Btn style={{fontSize:10,padding:'2px 7px'}} onClick={()=>setShowEdit(r)}>Edit</Btn><Btn variant="d" style={{fontSize:10,padding:'2px 7px'}} onClick={async()=>{await receiptsApi.remove(r.id);load();notify('Deleted.');}}>Del</Btn></>}
-          </div></TD>
+          <TD>
+            <div style={{display:'flex',gap:3}}>
+              <Btn variant="i" style={{fontSize:10,padding:'2px 7px'}} onClick={()=>setShowView(r)}>View</Btn>
+              {role==='admin'&&<>
+                <Btn style={{fontSize:10,padding:'2px 7px'}} onClick={()=>setShowEdit(r)}>Edit</Btn>
+                <Btn variant="d" style={{fontSize:10,padding:'2px 7px'}} onClick={async()=>{if(window.confirm('Delete this receipt?')){await receiptsApi.remove(r.id);load();notify('Deleted.');}}}>Del</Btn>
+              </>}
+            </div>
+          </TD>
         </TR>
       ))}
     />
@@ -92,7 +97,7 @@ function AddReceiptModal({onClose,onSaved,receipts,customers,role,branch}){
   const[village,setVillage]=useState('');
   const[mandal,setMandal]=useState('');
   const[custBranch,setCustBranch]=useState(branch||'Maheshwaram');
-  const[modelRows,setModelRows]=useState([{model:'Model A',qty:1,price:''}]);
+  const[modelRows,setModelRows]=useState([{model:'',qty:1,price:''}]);
   const[paid,setPaid]=useState('');
   const[payMode,setPayMode]=useState('');
   const[bank,setBank]=useState('');
@@ -103,6 +108,23 @@ function AddReceiptModal({onClose,onSaved,receipts,customers,role,branch}){
   const[exBank,setExBank]=useState('');
   const[exUtr,setExUtr]=useState('');
   const[saving,setSaving]=useState(false);
+  const[availModels,setAvailModels]=useState([]);
+  const[stockEntries,setStockEntries]=useState([]);
+  useEffect(()=>{
+    stockApi.models().then(m=>setAvailModels(m||[])).catch(()=>{});
+    stockApi.entries().then(e=>setStockEntries(e||[])).catch(()=>{});
+  },[]);
+  function getStock(model,br){
+    let t=0;
+    stockEntries.forEach(e=>{
+      if(e.model!==model)return;
+      if(e.type==='Stock in'&&e.branch===br)t+=e.qty||0;
+      else if(e.type==='Transfer'&&e.branch===br)t-=e.qty||0;
+      else if(e.type==='Transfer'&&e.transferTo===br)t+=e.qty||0;
+      else if(e.type==='Stock out'&&e.branch===br)t-=e.qty||0;
+    });
+    return Math.max(0,t);
+  }
   function onCustSearch(q){setCustSearch(q);if(!q){setSuggestions([]);return;}const seen=new Set();setSuggestions(customers.filter(c=>{if(seen.has(c.id))return false;if(c.name?.toLowerCase().includes(q.toLowerCase())||c.phone?.includes(q)){seen.add(c.id);return true;}return false;}).slice(0,6));}
   function selectCust(c){setSelCust(c);setMode('existing');setCustSearch(c.name+' ('+c.phone+')');setSuggestions([]);const cr=receipts.filter(r=>(r.custId===c.id||r.billNo===c.billNo)&&!r.isPayment);if(cr.length)setSelReceiptId(cr[0].id);}
   function clearCust(){setSelCust(null);setMode('new');setCustSearch('');setSuggestions([]);}
@@ -126,15 +148,15 @@ function AddReceiptModal({onClose,onSaved,receipts,customers,role,branch}){
         notify('Payment recorded for '+selCust.name);
       }else{
         if(!date||!billNo||!name||!phone){notify('Fill all required fields');setSaving(false);return;}
-        if(modelRows.some(r=>!r.price)){notify('Enter price for all models');setSaving(false);return;}
+        if(modelRows.some(r=>!r.price||!r.model)){notify('Select model and enter price for all rows');setSaving(false);return;}
         if(!payMode){notify('Select payment mode');setSaving(false);return;}
         if(role==='branch_manager'&&date<today()){notify('Branch managers cannot backdate receipts');setSaving(false);return;}
+        const lowStock=modelRows.filter(r=>r.model&&getStock(r.model,custBranch)<(parseInt(r.qty)||1));
+        if(lowStock.length>0){notify('Warning: Low/no stock for '+lowStock.map(r=>r.model).join(', ')+' — saving anyway');}
         const modelSummary=modelRows.map(r=>r.model+(r.qty>1?' x'+r.qty:'')).join(', ');
-                  const[availModels,setAvailModels]=useState([]);
-const[stockEntries,setStockEntries]=useState([]);
-       const custRef = await customersApi.create({date,billNo,name,phone,village,mandal,model:modelSummary,soldPrice:grand,totalPaid:parseFloat(paid)||0,branch:custBranch,status:'Pending',deliveredDate:null,models:modelRows});
-const custId = custRef.id;
-await receiptsApi.create({date,billNo,custId,name,village,mandal,model:modelSummary,models:modelRows,soldPrice:grand,amtPaid:parseFloat(paid)||0,balance,mode:payMode,bank:payMode==='Bank transfer'?bank:'',utr:payMode==='Bank transfer'?utr:'',branch:custBranch,isPayment:false});
+        const custRef=await customersApi.create({date,billNo,name,phone,village,mandal,model:modelSummary,soldPrice:grand,totalPaid:parseFloat(paid)||0,branch:custBranch,status:'Pending',deliveredDate:null,models:modelRows});
+        const custId=custRef.id;
+        await receiptsApi.create({date,billNo,custId,name,village,mandal,model:modelSummary,models:modelRows,soldPrice:grand,amtPaid:parseFloat(paid)||0,balance,mode:payMode,bank:payMode==='Bank transfer'?bank:'',utr:payMode==='Bank transfer'?utr:'',branch:custBranch,isPayment:false});
         notify('Receipt saved! Bill: '+billNo);
       }
       onSaved();
@@ -145,22 +167,22 @@ await receiptsApi.create({date,billNo,custId,name,village,mandal,model:modelSumm
       <div style={{position:'relative'}}>
         <Input value={custSearch} onChange={e=>onCustSearch(e.target.value)} placeholder="Type name or phone..."/>
         {suggestions.length>0&&<div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1px solid #d0cfc8',borderRadius:7,zIndex:100,maxHeight:160,overflowY:'auto',marginTop:2,boxShadow:'0 4px 16px rgba(0,0,0,.1)'}}>
-          {suggestions.map(c=>{const bal=(c.soldPrice||0)-(c.totalPaid||0);return<div key={c.id} onMouseDown={()=>selectCust(c)} style={{padding:'8px 10px',cursor:'pointer',borderBottom:'1px solid #f0efec'}}><div style={{display:'flex',justifyContent:'space-between'}}><span style={{fontWeight:600,fontSize:12}}>{c.name}</span><span style={{fontSize:11,color:bal>0?'#A32D2D':'#27500A',fontWeight:600}}>{bal>0?'₹'+fmt(bal)+' due':'Fully paid'}</span></div><div style={{fontSize:10,color:'#706f6b'}}>{c.phone} · {c.billNo} · {c.branch}</div></div>;})}
+          {suggestions.map(c=>{const bal=(c.soldPrice||0)-(c.totalPaid||0);return<div key={c.id} onMouseDown={()=>selectCust(c)} style={{padding:'8px 10px',cursor:'pointer',borderBottom:'1px solid #f0efec'}}><div style={{display:'flex',justifyContent:'space-between'}}><span style={{fontWeight:600,fontSize:12}}>{c.name}</span><span style={{fontSize:11,color:bal>0?'#A32D2D':'#27500A',fontWeight:600}}>{bal>0?'Rs'+fmt(bal)+' due':'Fully paid'}</span></div><div style={{fontSize:10,color:'#706f6b'}}>{c.phone} - {c.billNo} - {c.branch}</div></div>;})}
         </div>}
       </div>
     </Field>
     {mode==='existing'&&selCust&&<>
       <div style={{background:'#EEEDFE',borderRadius:8,padding:'9px 12px',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <div><div style={{fontWeight:600,fontSize:12,color:'#3C3489'}}>✓ Existing customer</div><div style={{fontSize:11,color:'#706f6b'}}>{selCust.phone} · {selCust.branch}</div></div>
+        <div><div style={{fontWeight:600,fontSize:12,color:'#3C3489'}}>Existing customer</div><div style={{fontSize:11,color:'#706f6b'}}>{selCust.phone} - {selCust.branch}</div></div>
         <Btn style={{fontSize:10,padding:'2px 7px'}} onClick={clearCust}>Clear</Btn>
       </div>
       {selReceipt&&<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:12}}>
-        {[{label:'Sold price',value:'₹'+fmt(selReceipt.soldPrice),bg:'#F0EFFD',color:'#534AB7'},{label:'Already paid',value:'₹'+fmt(selReceipt.amtPaid),bg:'#EAF3DE',color:'#27500A'},{label:'Balance due',value:'₹'+fmt(selReceipt.balance),bg:'#FCEBEB',color:'#A32D2D'}].map(s=><div key={s.label} style={{background:s.bg,borderRadius:7,padding:10,textAlign:'center'}}><div style={{fontSize:15,fontWeight:700,color:s.color}}>{s.value}</div><div style={{fontSize:10,color:s.color,opacity:.7,textTransform:'uppercase',marginTop:2}}>{s.label}</div></div>)}
+        {[{label:'Sold price',value:'Rs'+fmt(selReceipt.soldPrice),bg:'#F0EFFD',color:'#534AB7'},{label:'Already paid',value:'Rs'+fmt(selReceipt.amtPaid),bg:'#EAF3DE',color:'#27500A'},{label:'Balance due',value:'Rs'+fmt(selReceipt.balance),bg:'#FCEBEB',color:'#A32D2D'}].map(s=><div key={s.label} style={{background:s.bg,borderRadius:7,padding:10,textAlign:'center'}}><div style={{fontSize:15,fontWeight:700,color:s.color}}>{s.value}</div><div style={{fontSize:10,color:s.color,opacity:.7,textTransform:'uppercase',marginTop:2}}>{s.label}</div></div>)}
       </div>}
       <Field label="Date of payment"><Input type="date" value={exDate} onChange={e=>setExDate(e.target.value)}/></Field>
-      <Field label="Amount paying now (₹)">
+      <Field label="Amount paying now (Rs)">
         <Input type="number" value={exAmount} onChange={e=>setExAmount(e.target.value)} placeholder="0"/>
-        {exAmount&&selReceipt&&<div style={{fontSize:11,color:'#706f6b',marginTop:4}}>Remaining: <strong style={{color:(selReceipt.balance-parseFloat(exAmount))<=0?'#27500A':'#A32D2D'}}>₹{fmt(Math.max(0,selReceipt.balance-parseFloat(exAmount)))}</strong></div>}
+        {exAmount&&selReceipt&&<div style={{fontSize:11,color:'#706f6b',marginTop:4}}>Remaining: <strong style={{color:(selReceipt.balance-parseFloat(exAmount))<=0?'#27500A':'#A32D2D'}}>Rs{fmt(Math.max(0,selReceipt.balance-parseFloat(exAmount)))}</strong></div>}
       </Field>
       <Field label="Payment mode"><Select value={exMode} onChange={e=>setExMode(e.target.value)} options={[{value:'',label:'Select mode'},'Cash','Bank transfer']}/></Field>
       {exMode==='Bank transfer'&&<><Field label="Bank"><Select value={exBank} onChange={e=>setExBank(e.target.value)} options={[{value:'',label:'Select bank'},'Canara','TEW','STEW','Agros']}/></Field><Field label="UTR ID"><Input value={exUtr} onChange={e=>setExUtr(e.target.value)} placeholder="UTR reference"/></Field></>}
@@ -170,18 +192,25 @@ await receiptsApi.create({date,billNo,custId,name,village,mandal,model:modelSumm
       <Grid2><Field label="Name"><Input value={name} onChange={e=>setName(e.target.value)} placeholder="Customer name"/></Field><Field label="Phone"><Input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Phone number"/></Field></Grid2>
       <Grid2><Field label="Village"><Input value={village} onChange={e=>setVillage(e.target.value)}/></Field><Field label="Mandal"><Input value={mandal} onChange={e=>setMandal(e.target.value)}/></Field></Grid2>
       <Field label="Branch">{role==='admin'?<Select value={custBranch} onChange={e=>setCustBranch(e.target.value)} options={BRANCHES}/>:<Input value={custBranch} readonly/>}</Field>
-      <Field label={<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>Models <Btn variant="s" style={{fontSize:10,padding:'2px 7px'}} onClick={()=>setModelRows([...modelRows,{model:'Model A',qty:1,price:''}])}>+ Add model</Btn></div>}>
-        {modelRows.map((row,i)=><div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 100px 26px',gap:6,alignItems:'center',marginBottom:6,padding:'7px 9px',background:'#f7f7f5',borderRadius:7,border:'1px solid #e3e2dc'}}>
-          <select value={row.model} onChange={e=>{const r=[...modelRows];r[i].model=e.target.value;setModelRows(r);const st=getStock(e.target.value,custBranch);if(st===0)notify('Warning: No stock for '+e.target.value);else if(st<5)notify('Low stock: '+st+' units of '+e.target.value);}} style={{padding:'5px 8px',fontSize:12,border:'1px solid #d0cfc8',borderRadius:7,background:'#fff',flex:1}}><option value="">Select model</option>{availModels.map(m=>{const st=getStock(m,custBranch);return<option key={m} value={m} style={{color:st===0?'#A32D2D':st<5?'#BA7517':'inherit'}}>{m} {st===0?'(no stock)':st<5?'(low: '+st+')':'('+st+')'}</option>;})}</select>
-          <Input type="number" value={row.qty} onChange={e=>{const r=[...modelRows];r[i].qty=e.target.value;setModelRows(r);}} style={{textAlign:'center'}}/>
-          <Input type="number" value={row.price} onChange={e=>{const r=[...modelRows];r[i].price=e.target.value;setModelRows(r);}} placeholder="Price ₹" style={{textAlign:'right'}}/>
-          <div onClick={()=>{if(modelRows.length>1)setModelRows(modelRows.filter((_,j)=>j!==i));}} style={{background:'#FCEBEB',color:'#A32D2D',border:'1px solid #F09595',borderRadius:5,cursor:'pointer',width:24,height:24,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>✕</div>
-        </div>)}
+      <Field label={<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>Models <Btn variant="s" style={{fontSize:10,padding:'2px 7px'}} onClick={()=>setModelRows([...modelRows,{model:'',qty:1,price:''}])}>+ Add model</Btn></div>}>
+        {modelRows.map((row,i)=>{
+          const st=row.model?getStock(row.model,custBranch):null;
+          return <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 100px 26px',gap:6,alignItems:'center',marginBottom:6,padding:'7px 9px',background:'#f7f7f5',borderRadius:7,border:`1px solid ${st===0?'#F09595':'#e3e2dc'}`}}>
+            <select value={row.model} onChange={e=>{const r=[...modelRows];r[i].model=e.target.value;setModelRows(r);const s=getStock(e.target.value,custBranch);if(s===0)notify('Warning: No stock for '+e.target.value+' in '+custBranch);else if(s<5)notify('Low stock: only '+s+' units of '+e.target.value);}} style={{padding:'5px 6px',fontSize:12,border:'1px solid #d0cfc8',borderRadius:6,background:'#fff'}}>
+              <option value="">Select model</option>
+              {availModels.map(m=>{const s=getStock(m,custBranch);return<option key={m} value={m} style={{color:s===0?'#A32D2D':s<5?'#BA7517':'inherit'}}>{m} {s===0?'(no stock)':s<5?'(low: '+s+')':'('+s+')'}</option>;})}
+            </select>
+            <Input type="number" value={row.qty} onChange={e=>{const r=[...modelRows];r[i].qty=e.target.value;setModelRows(r);}} style={{textAlign:'center'}}/>
+            <Input type="number" value={row.price} onChange={e=>{const r=[...modelRows];r[i].price=e.target.value;setModelRows(r);}} placeholder="Price" style={{textAlign:'right'}}/>
+            <div onClick={()=>{if(modelRows.length>1)setModelRows(modelRows.filter((_,j)=>j!==i));}} style={{background:'#FCEBEB',color:'#A32D2D',border:'1px solid #F09595',borderRadius:5,cursor:'pointer',width:24,height:24,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>X</div>
+          </div>;
+        })}
+        {modelRows.some(r=>r.model&&getStock(r.model,custBranch)===0)&&<div style={{background:'#FCEBEB',borderRadius:6,padding:'6px 10px',fontSize:11,color:'#A32D2D',marginTop:4}}>Some models have no stock — you can still save.</div>}
       </Field>
       <div style={{background:'#f7f7f5',borderRadius:8,padding:'10px 13px',marginBottom:10}}>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}><span style={{color:'#706f6b'}}>Grand total</span><span style={{fontWeight:700,fontSize:14}}>₹{fmt(grand)}</span></div>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6,alignItems:'center'}}><span style={{color:'#706f6b'}}>Amount paid (₹)</span><input type="number" value={paid} onChange={e=>setPaid(e.target.value)} placeholder="0" style={{width:130,padding:'4px 8px',fontSize:12,border:'1px solid #d0cfc8',borderRadius:6,textAlign:'right'}}/></div>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:12,borderTop:'1px solid #e3e2dc',paddingTop:6}}><span style={{fontWeight:500,color:'#706f6b'}}>Balance</span><span style={{fontWeight:700,fontSize:14,color:balance>0?'#A32D2D':'#27500A'}}>₹{fmt(balance)}</span></div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}><span style={{color:'#706f6b'}}>Grand total</span><span style={{fontWeight:700,fontSize:14}}>Rs{fmt(grand)}</span></div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6,alignItems:'center'}}><span style={{color:'#706f6b'}}>Amount paid (Rs)</span><input type="number" value={paid} onChange={e=>setPaid(e.target.value)} placeholder="0" style={{width:130,padding:'4px 8px',fontSize:12,border:'1px solid #d0cfc8',borderRadius:6,textAlign:'right'}}/></div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:12,borderTop:'1px solid #e3e2dc',paddingTop:6}}><span style={{fontWeight:500,color:'#706f6b'}}>Balance</span><span style={{fontWeight:700,fontSize:14,color:balance>0?'#A32D2D':'#27500A'}}>Rs{fmt(balance)}</span></div>
       </div>
       <Field label="Payment mode"><Select value={payMode} onChange={e=>setPayMode(e.target.value)} options={[{value:'',label:'Select mode'},'Cash','Bank transfer']}/></Field>
       {payMode==='Bank transfer'&&<><Field label="Bank"><Select value={bank} onChange={e=>setBank(e.target.value)} options={[{value:'',label:'Select bank'},'Canara','TEW','STEW','Agros']}/></Field><Field label="UTR ID"><Input value={utr} onChange={e=>setUtr(e.target.value)} placeholder="UTR reference"/></Field></>}
@@ -191,12 +220,12 @@ await receiptsApi.create({date,billNo,custId,name,village,mandal,model:modelSumm
 }
 function ViewReceiptModal({receipt:r,onClose}){
   return <Modal open title="Receipt details" onClose={onClose} width={460}>
-    {[['Date',r.date],['Bill number',r.billNo],['Customer',r.name],['Village / Mandal',(r.village||'—')+', '+(r.mandal||'—')],['Branch',r.branch]].map(([l,v])=><div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid #f0efec',fontSize:12}}><span style={{color:'#706f6b'}}>{l}</span><span style={{fontWeight:500}}>{v}</span></div>)}
+    {[['Date',r.date],['Bill number',r.billNo],['Customer',r.name],['Village / Mandal',(r.village||'--')+', '+(r.mandal||'--')],['Branch',r.branch]].map(([l,v])=><div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid #f0efec',fontSize:12}}><span style={{color:'#706f6b'}}>{l}</span><span style={{fontWeight:500}}>{v}</span></div>)}
     {r.models?.length>0&&<div style={{margin:'10px 0',border:'1px solid #e3e2dc',borderRadius:8,overflow:'hidden'}}>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 50px 80px 80px',background:'#f7f7f5',padding:'6px 10px',fontSize:10,fontWeight:600,color:'#706f6b',textTransform:'uppercase'}}><span>Model</span><span style={{textAlign:'center'}}>Qty</span><span style={{textAlign:'right'}}>Price</span><span style={{textAlign:'right'}}>Total</span></div>
-      {r.models.map((m,i)=><div key={i} style={{display:'grid',gridTemplateColumns:'1fr 50px 80px 80px',padding:'7px 10px',borderTop:'1px solid #e3e2dc',fontSize:12}}><span>{m.model}</span><span style={{textAlign:'center',color:'#706f6b'}}>{m.qty}</span><span style={{textAlign:'right',color:'#706f6b'}}>₹{fmt(m.price)}</span><span style={{textAlign:'right',fontWeight:600}}>₹{fmt(m.rowTotal)}</span></div>)}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 50px 80px',background:'#f7f7f5',padding:'6px 10px',fontSize:10,fontWeight:600,color:'#706f6b',textTransform:'uppercase'}}><span>Model</span><span style={{textAlign:'center'}}>Qty</span><span style={{textAlign:'right'}}>Price</span></div>
+      {r.models.map((m,i)=><div key={i} style={{display:'grid',gridTemplateColumns:'1fr 50px 80px',padding:'7px 10px',borderTop:'1px solid #e3e2dc',fontSize:12}}><span>{m.model}</span><span style={{textAlign:'center',color:'#706f6b'}}>{m.qty}</span><span style={{textAlign:'right',fontWeight:600}}>Rs{fmt(m.price)}</span></div>)}
     </div>}
-    {[['Grand total','₹'+fmt(r.soldPrice)],['Amount paid','₹'+fmt(r.amtPaid)],['Balance','₹'+fmt(r.balance)],['Payment mode',r.mode||'—'],...(r.bank?[['Bank',r.bank]]:[]),...(r.utr?[['UTR ID',r.utr]]:[])].map(([l,v])=><div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid #f0efec',fontSize:12}}><span style={{color:'#706f6b'}}>{l}</span><span style={{fontWeight:500}}>{v}</span></div>)}
+    {[['Grand total','Rs'+fmt(r.soldPrice)],['Amount paid','Rs'+fmt(r.amtPaid)],['Balance','Rs'+fmt(r.balance)],['Payment mode',r.mode||'--'],...(r.bank?[['Bank',r.bank]]:[]),...(r.utr?[['UTR ID',r.utr]]:[])].map(([l,v])=><div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid #f0efec',fontSize:12}}><span style={{color:'#706f6b'}}>{l}</span><span style={{fontWeight:500}}>{v}</span></div>)}
     <div style={{display:'flex',justifyContent:'flex-end',marginTop:14}}><Btn onClick={onClose}>Close</Btn></div>
   </Modal>;
 }
@@ -206,16 +235,12 @@ function EditReceiptModal({receipt,onClose,onSaved}){
   const[paid,setPaid]=useState(receipt.amtPaid||'');
   const[mode,setMode]=useState(receipt.mode||'');
   const[saving,setSaving]=useState(false);
-   const[availModels,setAvailModels]=useState([]);
-const[stockEntries,setStockEntries]=useState([]);
-useEffect(()=>{stockApi.models().then(m=>setAvailModels(m||[])).catch(()=>{});stockApi.entries().then(e=>setStockEntries(e||[])).catch(()=>{});},[]);
-function getStock(model,br){let t=0;stockEntries.forEach(e=>{if(e.model!==model)return;if(e.type==='Stock in'&&e.branch===br)t+=e.qty||0;else if(e.type==='Transfer'&&e.branch===br)t-=e.qty||0;else if(e.type==='Transfer'&&e.transferTo===br)t+=e.qty||0;else if(e.type==='Stock out'&&e.branch===br)t-=e.qty||0;});return Math.max(0,t);}               
   const bal=(parseFloat(sold)||0)-(parseFloat(paid)||0);
   async function save(){setSaving(true);try{await receiptsApi.update(receipt.id,{date,soldPrice:parseFloat(sold),amtPaid:parseFloat(paid),balance:bal,mode});notify('Updated!');onSaved();}catch(e){notify('Error: '+e.message);}finally{setSaving(false);}}
   return <Modal open title="Edit receipt" onClose={onClose}>
     <Field label="Date"><Input type="date" value={date} onChange={e=>setDate(e.target.value)}/></Field>
     <Grid2><Field label="Sold price"><Input type="number" value={sold} onChange={e=>setSold(e.target.value)}/></Field><Field label="Amount paid"><Input type="number" value={paid} onChange={e=>setPaid(e.target.value)}/></Field></Grid2>
-    <Field label="Balance"><Input value={'₹'+fmt(bal)} readonly/></Field>
+    <Field label="Balance"><Input value={'Rs'+fmt(bal)} readonly/></Field>
     <Field label="Mode"><Select value={mode} onChange={e=>setMode(e.target.value)} options={['Cash','Bank transfer']}/></Field>
     <ModalActions onCancel={onClose} onSave={save} loading={saving}/>
   </Modal>;
