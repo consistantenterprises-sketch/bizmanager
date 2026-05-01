@@ -43,7 +43,7 @@ export function Expenses(){
         <TD style={{color:'#a8a79f'}}>{i+1}</TD><TD>{e.date}</TD>
         <TD><span style={{background:tC[e.type]||'#F1EFE8',color:tCol[e.type]||'#5F5E5A',padding:'2px 8px',borderRadius:20,fontSize:10,fontWeight:500}}>{e.type}</span></TD>
         <TD style={{fontSize:11,color:'#706f6b'}}>{e.desc}</TD>
-        <TD style={{fontWeight:500}}>₹{fmt(e.amount)}</TD><TD>{e.branch}</TD>
+        <TD style={{fontWeight:500}}>Rs{fmt(e.amount)}</TD><TD>{e.branch}</TD>
         <TD><div style={{display:'flex',gap:3}}>{role==='admin'?<><Btn style={{fontSize:10,padding:'2px 7px'}} onClick={()=>setShowEdit(e)}>Edit</Btn><Btn variant="d" style={{fontSize:10,padding:'2px 7px'}} onClick={async()=>{await expensesApi.remove(e.id);load();notify('Deleted.');}}>Del</Btn></>:<span style={{fontSize:11,color:'#a8a79f'}}>View only</span>}</div></TD>
       </TR>
     ))}/>
@@ -64,7 +64,7 @@ function ExpenseModal({expense,onClose,onSaved,role,branch}){
     <Field label="Branch">{role==='admin'?<Select value={expBranch} onChange={e=>setExpBranch(e.target.value)} options={BRANCHES}/>:<Input value={expBranch} readonly/>}</Field>
     <Field label="Type"><Select value={type} onChange={e=>setType(e.target.value)} options={[{value:'',label:'Select type'},...EXPENSE_TYPES]}/></Field>
     <Field label="Description"><Textarea value={desc} onChange={e=>setDesc(e.target.value)}/></Field>
-    <Field label="Amount (₹)"><Input type="number" value={amount} onChange={e=>setAmount(e.target.value)}/></Field>
+    <Field label="Amount (Rs)"><Input type="number" value={amount} onChange={e=>setAmount(e.target.value)}/></Field>
     <ModalActions onCancel={onClose} onSave={save} loading={saving}/>
   </Modal>;
 }
@@ -93,7 +93,7 @@ export function Deposits(){
   if(loading)return <Loading/>;
   return <div>
     <SectionHeader left={<span style={{fontSize:12,color:'#706f6b'}}>Bank deposits per branch</span>} right={<Btn variant="p" onClick={()=>setShowAdd(true)}>+ Add deposit</Btn>}/>
-    <Stats items={[{label:'Entries',value:filtered.length},{label:'TEW',value:'₹'+fmt(filtered.filter(d=>d.bank==='TEW').reduce((s,d)=>s+(d.amount||0),0)),color:'#3C3489'},{label:'STEW',value:'₹'+fmt(filtered.filter(d=>d.bank==='STEW').reduce((s,d)=>s+(d.amount||0),0)),color:'#085041'},{label:'Grand total',value:'₹'+fmt(filtered.reduce((s,d)=>s+(d.amount||0),0))}]}/>
+    <Stats items={[{label:'Entries',value:filtered.length},{label:'TEW',value:'Rs'+fmt(filtered.filter(d=>d.bank==='TEW').reduce((s,d)=>s+(d.amount||0),0)),color:'#3C3489'},{label:'STEW',value:'Rs'+fmt(filtered.filter(d=>d.bank==='STEW').reduce((s,d)=>s+(d.amount||0),0)),color:'#085041'},{label:'Grand total',value:'Rs'+fmt(filtered.reduce((s,d)=>s+(d.amount||0),0))}]}/>
     <FilterBar>
       <FInput type="date" value={fromDate} onChange={setFromDate}/><FSep/>
       <FInput type="date" value={toDate} onChange={setToDate}/>
@@ -104,7 +104,7 @@ export function Deposits(){
       <TR key={d.id}>
         <TD style={{color:'#a8a79f'}}>{i+1}</TD><TD>{d.date}</TD>
         <TD><span style={{background:bC[d.bank]||'#F1EFE8',color:bCol[d.bank]||'#5F5E5A',padding:'2px 8px',borderRadius:20,fontSize:10,fontWeight:500}}>{d.bank}</span></TD>
-        <TD>{d.branch}</TD><TD style={{fontWeight:500}}>₹{fmt(d.amount)}</TD>
+        <TD>{d.branch}</TD><TD style={{fontWeight:500}}>Rs{fmt(d.amount)}</TD>
         <TD><div style={{display:'flex',gap:3}}>{role==='admin'?<><Btn style={{fontSize:10,padding:'2px 7px'}} onClick={()=>setShowEdit(d)}>Edit</Btn><Btn variant="d" style={{fontSize:10,padding:'2px 7px'}} onClick={async()=>{await depositsApi.remove(d.id);load();notify('Deleted.');}}>Del</Btn></>:<span style={{fontSize:11,color:'#a8a79f'}}>View only</span>}</div></TD>
       </TR>
     ))}/>
@@ -123,7 +123,7 @@ function DepositModal({deposit,onClose,onSaved,role,branch}){
     <Field label="Date"><Input type="date" value={date} onChange={e=>setDate(e.target.value)}/></Field>
     <Field label="Bank"><Select value={bank} onChange={e=>setBank(e.target.value)} options={[{value:'',label:'Select bank'},...BANKS]}/></Field>
     <Field label="Branch">{role==='admin'?<Select value={depBranch} onChange={e=>setDepBranch(e.target.value)} options={BRANCHES}/>:<Input value={depBranch} readonly/>}</Field>
-    <Field label="Amount (₹)"><Input type="number" value={amount} onChange={e=>setAmount(e.target.value)}/></Field>
+    <Field label="Amount (Rs)"><Input type="number" value={amount} onChange={e=>setAmount(e.target.value)}/></Field>
     <ModalActions onCancel={onClose} onSave={save} loading={saving}/>
   </Modal>;
 }
@@ -141,6 +141,8 @@ export function Stock(){
   const[showTransfer,setShowTransfer]=useState(false);
   const[search,setSearch]=useState('');
   const[branchF,setBranchF]=useState('all');
+  const[entryFrom,setEntryFrom]=useState('');
+  const[entryTo,setEntryTo]=useState('');
   useEffect(()=>{load();},[]);
   async function load(){
     try{
@@ -193,11 +195,20 @@ export function Stock(){
         <div style={{display:'flex',borderBottom:'1px solid #e3e2dc'}}>
           {['entries','customers'].map(t=><button key={t} onClick={()=>setRecTab(t)} style={{padding:'6px 14px',fontSize:11,cursor:'pointer',color:recTab===t?'#534AB7':'#706f6b',border:'none',background:'none',borderBottom:recTab===t?'2px solid #534AB7':'2px solid transparent',fontWeight:recTab===t?600:400,textTransform:'capitalize'}}>{t==='entries'?'Stock entries':'Customer history'}</button>)}
         </div>
-        {recTab==='entries'&&<div style={{overflowX:'auto'}}>
-          <table style={{width:'100%',borderCollapse:'collapse',fontSize:11,whiteSpace:'nowrap'}}>
-            <thead><tr>{['#','Date','Invoice','Type','Qty','Branch','Transfer to'].map(h=><th key={h} style={{padding:'9px 12px',textAlign:'left',fontSize:10,fontWeight:600,color:'#706f6b',background:'#f7f7f5',borderBottom:'1px solid #e3e2dc',textTransform:'uppercase'}}>{h}</th>)}</tr></thead>
-            <tbody>{entries.filter(e=>e.model===selModel).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map((e,i)=><tr key={e.id||i}><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',color:'#a8a79f'}}>{i+1}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.date}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.invoice}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}><Badge label={e.type}/></td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',fontWeight:500,color:e.type!=='Stock in'?'#0C447C':'#27500A'}}>{e.type!=='Stock in'?'-':'+'}{e.qty}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.branch}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',color:'#706f6b'}}>{e.transferTo||'--'}</td></tr>)}</tbody>
-          </table>
+        {recTab==='entries'&&<div>
+          <div style={{padding:'8px 12px',borderBottom:'1px solid #e3e2dc',display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
+            <span style={{fontSize:11,color:'#706f6b'}}>Filter:</span>
+            <input type="date" value={entryFrom} onChange={e=>setEntryFrom(e.target.value)} style={{fontSize:11,padding:'3px 6px',border:'1px solid #d0cfc8',borderRadius:6}}/>
+            <span style={{fontSize:11,color:'#706f6b'}}>to</span>
+            <input type="date" value={entryTo} onChange={e=>setEntryTo(e.target.value)} style={{fontSize:11,padding:'3px 6px',border:'1px solid #d0cfc8',borderRadius:6}}/>
+            {(entryFrom||entryTo)&&<button onClick={()=>{setEntryFrom('');setEntryTo('');}} style={{fontSize:10,padding:'2px 7px',border:'1px solid #d0cfc8',borderRadius:5,background:'#fff',cursor:'pointer'}}>Clear</button>}
+          </div>
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:11,whiteSpace:'nowrap'}}>
+              <thead><tr>{['#','Date','Invoice','Type','Qty','Branch','Transfer to'].map(h=><th key={h} style={{padding:'9px 12px',textAlign:'left',fontSize:10,fontWeight:600,color:'#706f6b',background:'#f7f7f5',borderBottom:'1px solid #e3e2dc',textTransform:'uppercase'}}>{h}</th>)}</tr></thead>
+              <tbody>{entries.filter(e=>e.model===selModel&&(!entryFrom||e.date>=entryFrom)&&(!entryTo||e.date<=entryTo)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map((e,i)=><tr key={e.id||i}><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',color:'#a8a79f'}}>{i+1}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.date}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.invoice}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}><Badge label={e.type}/></td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',fontWeight:500,color:e.type!=='Stock in'?'#0C447C':'#27500A'}}>{e.type!=='Stock in'?'-':'+'}{e.qty}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.branch}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',color:'#706f6b'}}>{e.transferTo||'--'}</td></tr>)}</tbody>
+            </table>
+          </div>
         </div>}
         {recTab==='customers'&&<Table cols={['#','Date','Bill no','Name','Phone','Village','Branch','Status']} rows={customers.filter(c=>c.model===selModel).map((c,i)=><TR key={c.id}><TD style={{color:'#a8a79f'}}>{i+1}</TD><TD>{c.date}</TD><TD style={{fontWeight:500,color:'#534AB7'}}>{c.billNo}</TD><TD style={{fontWeight:500}}>{c.name}</TD><TD style={{fontSize:11}}>{c.phone}</TD><TD style={{fontSize:11,color:'#706f6b'}}>{c.village}</TD><TD style={{fontSize:11}}>{c.branch}</TD><TD><Badge label={c.status}/></TD></TR>)}/>}
       </div>}
