@@ -175,8 +175,7 @@ export function Stock(){
             <div style={{fontSize:21,fontWeight:700,color:tc,marginBottom:1}}>{gt}</div>
             <div style={{fontSize:10,color:'#706f6b',textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:5}}>total units</div>
             {vB.map(b=>{const t=getTotal(model,b);const c=t===0?'#A32D2D':t<5?'#BA7517':'#27500A';return<div key={b} style={{display:'flex',justifyContent:'space-between',fontSize:11,padding:'2px 0',borderTop:'1px solid #f0efec'}}><span style={{color:'#706f6b'}}>{b}</span><span style={{fontWeight:600,color:c}}>{t}</span></div>;})}
-            <div style={{marginTop:5,paddingTop:4,borderTop:'1px solid #f0efec',fontSize:10,color:'#706f6b'}}>{customers.filter(c=>c.model===model).length} customers</span>{role==='admin'&&<span onClick={async(e)=>{e.stopPropagation();if(window.confirm('Delete model '+model+'?')){await stockApi.deleteModel(model);load();}}} style={{fontSize:9,color:'#A32D2D',cursor:'pointer',padding:'1px 5px',background:'#FCEBEB',borderRadius:4}}>Del</span>}</div>
-          </div>;
+            <div style={{marginTop:5,paddingTop:4,borderTop:'1px solid #f0efec',display:'flex',justifyContent:'space-between',alignItems:'center'}}><span style={{fontSize:10,color:'#706f6b'}}>{customers.filter(c=>c.model===model).length} customers</span>{role==='admin'&&<span onClick={async(e)=>{e.stopPropagation();if(window.confirm('Delete model '+model+'?')){await stockApi.deleteModel(model);load();}}} style={{fontSize:9,color:'#A32D2D',cursor:'pointer',padding:'1px 5px',background:'#FCEBEB',borderRadius:4}}>Del</span>}</div>
         })}
       </div>
       {selModel&&<div style={{border:'2px solid #534AB7',borderRadius:10,overflow:'hidden',marginTop:12}}>
