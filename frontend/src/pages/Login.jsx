@@ -9,6 +9,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+    const [blocked, setBlocked] = useState(false);
+const [deviceCode, setDeviceCode] = useState('');
   const [show, setShow] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -18,13 +20,32 @@ export default function Login() {
     try {
       await login(email, password);
       navigate('/dashboard');
-    } catch (err) {
-      setError('Invalid email or password');
-    } finally {
+   } catch (err) {
+  if (err.deviceBlocked) {
+    setBlocked(true);
+    setDeviceCode(err.deviceCode);
+  } else {
+    setError('Invalid email or password');
+  }
+}
+      finally {
       setLoading(false);
     }
   };
-
+if (blocked) return (
+  <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg,#f0efec,#e8e6e0)',fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'}}>
+    <div style={{background:'#fff',borderRadius:16,padding:'40px 36px',width:360,boxShadow:'0 20px 60px rgba(0,0,0,.1)',border:'1px solid #e3e2dc',textAlign:'center'}}>
+      <div style={{width:44,height:44,borderRadius:12,background:'#FCEBEB',display:'inline-flex',alignItems:'center',justifyContent:'center',marginBottom:14,fontSize:20}}>🔒</div>
+      <h2 style={{fontSize:18,fontWeight:700,color:'#1a1915',marginBottom:8}}>Device not authorized</h2>
+      <p style={{fontSize:13,color:'#706f6b',marginBottom:20}}>This device is not registered for your account. Share this code with your admin to get access:</p>
+      <div style={{background:'#EEEDFE',borderRadius:10,padding:'14px 20px',marginBottom:20}}>
+        <div style={{fontSize:28,fontWeight:700,color:'#534AB7',letterSpacing:4}}>{deviceCode}</div>
+        <div style={{fontSize:11,color:'#706f6b',marginTop:4}}>Device code</div>
+      </div>
+      <button onClick={()=>{setBlocked(false);setError('');}} style={{padding:'8px 20px',fontSize:12,border:'1px solid #d0cfc8',borderRadius:8,background:'#fff',cursor:'pointer',color:'#706f6b'}}>Try different account</button>
+    </div>
+  </div>
+);
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',

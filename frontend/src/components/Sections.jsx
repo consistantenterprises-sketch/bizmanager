@@ -131,6 +131,7 @@ export function Bookings(){
         <TD><div style={{display:'flex',gap:3}}>
           {b.status!=='delivered'&&<Btn variant="s" style={{fontSize:10,padding:'2px 6px'}} onClick={async()=>{await bookingsApi.update(b.id,{status:'delivered'});load();notify('Delivered!');}}>Delivered</Btn>}
           <Btn style={{fontSize:10,padding:'2px 6px'}} onClick={()=>setShowEdit(b)}>Edit</Btn>
+        <Btn variant="bk" style={{fontSize:10,padding:'2px 6px'}} onClick={()=>setShowDevices(e)}>Devices</Btn>
           {role==='admin'&&<Btn variant="d" style={{fontSize:10,padding:'2px 6px'}} onClick={async()=>{await bookingsApi.remove(b.id);load();notify('Deleted.');}}>Del</Btn>}
         </div></TD>
       </TR>;
@@ -167,6 +168,7 @@ export function Employees(){
   const[loading,setLoading]=useState(true);
   const[showAdd,setShowAdd]=useState(false);
   const[showEdit,setShowEdit]=useState(null);
+  const[showDevices,setShowDevices]=useState(null);
   const[search,setSearch]=useState('');
   const[branchF,setBranchF]=useState('all');
   const[roleF,setRoleF]=useState('all');
@@ -200,6 +202,7 @@ export function Employees(){
     ))}/>
     {showAdd&&<EmployeeModal onClose={()=>setShowAdd(false)} onSaved={()=>{setShowAdd(false);load();}}/>}
     {showEdit&&<EmployeeModal employee={showEdit} onClose={()=>setShowEdit(null)} onSaved={()=>{setShowEdit(null);load();}}/>}
+    {showDevices&&<DeviceModal employee={showDevices} onClose={()=>setShowDevices(null)}/>}
   </div>;
 }
 function EmployeeModal({employee,onClose,onSaved}){
@@ -219,6 +222,56 @@ function EmployeeModal({employee,onClose,onSaved}){
     <Field label="Role"><Select value={empRole} onChange={e=>setEmpRole(e.target.value)} options={[{value:'branch_manager',label:'Branch manager'},{value:'stock_manager',label:'Stock manager'}]}/></Field>
     {!employee&&<Field label="Password"><Input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></Field>}
     <ModalActions onCancel={onClose} onSave={save} loading={saving}/>
+  </Modal>;
+}
+     function DeviceModal({employee,onClose}){
+  const[devices,setDevices]=useState(employee.allowedDevices||[]);
+  const[newCode,setNewCode]=useState('');
+  const[maxDevices,setMaxDevices]=useState(employee.maxDevices||2);
+  const[saving,setSaving]=useState(false);
+  async function addDevice(){
+    if(!newCode){notify('Enter device code');return;}
+    setSaving(true);
+    try{
+      const{api}=await import('../lib/api');
+      await api.post('/auth/add-device',{uid:employee.id,deviceCode:newCode.toUpperCase(),maxDevices:parseInt(maxDevices)});
+      setDevices([...devices,newCode.toUpperCase()]);
+      setNewCode('');
+      notify('Device added!');
+    }catch(e){notify('Error: '+e.message);}finally{setSaving(false);}
+  }
+  async function removeDevice(code){
+    try{
+      const{api}=await import('../lib/api');
+      await api.delete('/auth/remove-device',{uid:employee.id,deviceCode:code});
+      setDevices(devices.filter(d=>d!==code));
+      notify('Device removed!');
+    }catch(e){notify('Error: '+e.message);}
+  }
+  return <Modal open title={'Manage devices — '+employee.name} onClose={onClose} width={420}>
+    <div style={{background:'#f7f7f5',borderRadius:8,padding:'10px 13px',marginBottom:12,fontSize:12,color:'#706f6b'}}>
+      Employee must share their device code from the blocked screen. Enter it below to grant access.
+    </div>
+    <Field label="Max devices allowed">
+      <select value={maxDevices} onChange={e=>setMaxDevices(e.target.value)} style={{padding:'7px 10px',fontSize:12,border:'1px solid #d0cfc8',borderRadius:7,background:'#fff'}}>
+        {[1,2,3,4,5].map(n=><option key={n} value={n}>{n} device{n>1?'s':''}</option>)}
+      </select>
+    </Field>
+    <Field label="Add device code">
+      <div style={{display:'flex',gap:6}}>
+        <input value={newCode} onChange={e=>setNewCode(e.target.value.toUpperCase())} placeholder="e.g. DEV-4821" style={{flex:1,padding:'7px 10px',fontSize:12,border:'1px solid #d0cfc8',borderRadius:7,background:'#fff',textTransform:'uppercase'}}/>
+        <Btn variant="p" onClick={addDevice} disabled={saving}>Add</Btn>
+      </div>
+    </Field>
+    <div style={{marginTop:8}}>
+      <div style={{fontSize:11,fontWeight:600,color:'#706f6b',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.04em'}}>Registered devices ({devices.length}/{maxDevices})</div>
+      {devices.length===0&&<div style={{fontSize:12,color:'#a8a79f',padding:'10px 0'}}>No devices registered yet</div>}
+      {devices.map(d=><div key={d} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 10px',background:'#f7f7f5',borderRadius:7,marginBottom:4,border:'1px solid #e3e2dc'}}>
+        <span style={{fontWeight:600,fontSize:13,color:'#534AB7',letterSpacing:2}}>{d}</span>
+        <Btn variant="d" style={{fontSize:10,padding:'2px 7px'}} onClick={()=>removeDevice(d)}>Remove</Btn>
+      </div>)}
+    </div>
+    <div style={{display:'flex',justifyContent:'flex-end',marginTop:14}}><Btn onClick={onClose}>Close</Btn></div>
   </Modal>;
 }
 export function Attendance(){
