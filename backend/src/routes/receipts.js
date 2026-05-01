@@ -9,7 +9,8 @@ router.use(authenticate, branchFilter);
 router.get('/', async (req, res) => {
   try {
     const db = getDb();
-let query = db.collection('receipts').orderBy('date', 'desc');    if (req.branchFilter) query = query.where('branch', '==', req.branchFilter);
+let query = db.collection('receipts').orderBy('date', 'desc').orderBy('createdAt', 'desc');
+      if (req.branchFilter) query = query.where('branch', '==', req.branchFilter);
     const snap = await query.get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (err) { res.status(500).json({ error: err.message }); }
