@@ -20,7 +20,8 @@ export default function Receipts(){
     try{const[r,c]=await Promise.all([receiptsApi.list(),customersApi.list()]);setReceipts(r);setCustomers(c);}
     catch(e){notify('Error: '+e.message);}finally{setLoading(false);}
   }
-  const filtered=receipts.filter(r=>{
+    const sorted=[...receipts].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')||(b.date||'').localeCompare(a.date||''));
+  const filtered=sorted.filter(r=>{
     if(role==='branch_manager'&&r.branch!==branch)return false;
     if(branchF!=='all'&&r.branch!==branchF)return false;
     if(fromDate&&r.date<fromDate)return false;
