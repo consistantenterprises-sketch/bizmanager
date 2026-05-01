@@ -146,7 +146,7 @@ export function Stock(){
     try{
       const{customersApi}=await import('../lib/api');
       const[e,t,m,c]=await Promise.all([stockApi.entries(),stockApi.transfers(),stockApi.models(),customersApi.list()]);
-      setEntries(e);setTransfers(t);setModels(m.length?m:['Model A','Model B','Solar Panel 5KW','Inverter 3KVA','Model C','Trolley']);setCustomers(c);
+      setEntries(e);setTransfers(t);setModels(m.length?m:['Model A','Model B','Trolley']);setCustomers(c);
     }catch(e){notify('Error: '+e.message);}finally{setLoading(false);}
   }
   function getTotal(model,br){let t=0;entries.forEach(e=>{if(e.model!==model)return;if(e.type==='Stock in'&&e.branch===br)t+=e.qty||0;else if(e.type==='Transfer'&&e.branch===br)t-=e.qty||0;else if(e.type==='Transfer'&&e.transferTo===br)t+=e.qty||0;else if(e.type==='Stock out'&&e.branch===br)t-=e.qty||0;});return Math.max(0,t);}
@@ -159,7 +159,7 @@ export function Stock(){
       left={<div style={{display:'flex',gap:3,background:'#f7f7f5',padding:3,borderRadius:8}}>
         {['models','transfers'].map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:'4px 13px',fontSize:11,borderRadius:5,cursor:'pointer',color:tab===t?'#1a1915':'#706f6b',border:tab===t?'1px solid #e3e2dc':'none',background:tab===t?'#fff':'none',fontWeight:tab===t?500:400,textTransform:'capitalize'}}>{t}</button>)}
       </div>}
-      right={<>{canModify&&<Btn variant="i" onClick={()=>setShowTransfer(true)}>⇄ Send to branch</Btn>}{canModify&&<Btn variant="p" onClick={()=>setShowAdd(true)}>+ Add stock</Btn>}<Btn onClick={()=>exportCSV('stock',[['Date','Invoice','Model','Type','Qty','Branch','Transfer to'],...entries.map(e=>[e.date,e.invoice,e.model,e.type,e.qty,e.branch,e.transferTo||''])])}>Export CSV</Btn></>}
+      right={<>{canModify&&<Btn variant="i" onClick={()=>setShowTransfer(true)}>Send to branch</Btn>}{canModify&&<Btn variant="p" onClick={()=>setShowAdd(true)}>+ Add stock</Btn>}<Btn onClick={()=>exportCSV('stock',[['Date','Invoice','Model','Type','Qty','Branch','Transfer to'],...entries.map(e=>[e.date,e.invoice,e.model,e.type,e.qty,e.branch,e.transferTo||''])])}>Export CSV</Btn></>}
     />
     {tab==='models'&&<>
       <FilterBar>
@@ -175,7 +175,11 @@ export function Stock(){
             <div style={{fontSize:21,fontWeight:700,color:tc,marginBottom:1}}>{gt}</div>
             <div style={{fontSize:10,color:'#706f6b',textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:5}}>total units</div>
             {vB.map(b=>{const t=getTotal(model,b);const c=t===0?'#A32D2D':t<5?'#BA7517':'#27500A';return<div key={b} style={{display:'flex',justifyContent:'space-between',fontSize:11,padding:'2px 0',borderTop:'1px solid #f0efec'}}><span style={{color:'#706f6b'}}>{b}</span><span style={{fontWeight:600,color:c}}>{t}</span></div>;})}
-            <div style={{marginTop:5,paddingTop:4,borderTop:'1px solid #f0efec',display:'flex',justifyContent:'space-between',alignItems:'center'}}><span style={{fontSize:10,color:'#706f6b'}}>{customers.filter(c=>c.model===model).length} customers</span>{role==='admin'&&<span onClick={async(e)=>{e.stopPropagation();if(window.confirm('Delete model '+model+'?')){await stockApi.deleteModel(model);load();}}} style={{fontSize:9,color:'#A32D2D',cursor:'pointer',padding:'1px 5px',background:'#FCEBEB',borderRadius:4}}>Del</span>}</div>
+            <div style={{marginTop:5,paddingTop:4,borderTop:'1px solid #f0efec',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontSize:10,color:'#706f6b'}}>{customers.filter(c=>c.model===model).length} customers</span>
+              {role==='admin'&&<span onClick={async(ev)=>{ev.stopPropagation();if(window.confirm('Delete model: '+model+'?')){await stockApi.deleteModel(model);load();}}} style={{fontSize:9,color:'#A32D2D',cursor:'pointer',padding:'1px 5px',background:'#FCEBEB',borderRadius:4}}>Del</span>}
+            </div>
+          </div>;
         })}
       </div>
       {selModel&&<div style={{border:'2px solid #534AB7',borderRadius:10,overflow:'hidden',marginTop:12}}>
@@ -184,7 +188,7 @@ export function Stock(){
             {selModel}
             <div style={{display:'flex',gap:5}}>{vB.map(b=>{const t=getTotal(selModel,b);const c=t===0?'#A32D2D':t<5?'#BA7517':'#27500A';return<span key={b} style={{fontSize:11,background:'#fff',border:'1px solid #d0cfc8',borderRadius:20,padding:'2px 8px',color:c,fontWeight:600}}>{b}: {t}</span>;})}</div>
           </div>
-          <button onClick={()=>setSelModel(null)} style={{background:'none',border:'none',cursor:'pointer',fontSize:16,color:'#534AB7'}}>✕</button>
+          <button onClick={()=>setSelModel(null)} style={{background:'none',border:'none',cursor:'pointer',fontSize:16,color:'#534AB7'}}>X</button>
         </div>
         <div style={{display:'flex',borderBottom:'1px solid #e3e2dc'}}>
           {['entries','customers'].map(t=><button key={t} onClick={()=>setRecTab(t)} style={{padding:'6px 14px',fontSize:11,cursor:'pointer',color:recTab===t?'#534AB7':'#706f6b',border:'none',background:'none',borderBottom:recTab===t?'2px solid #534AB7':'2px solid transparent',fontWeight:recTab===t?600:400,textTransform:'capitalize'}}>{t==='entries'?'Stock entries':'Customer history'}</button>)}
@@ -192,7 +196,7 @@ export function Stock(){
         {recTab==='entries'&&<div style={{overflowX:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:11,whiteSpace:'nowrap'}}>
             <thead><tr>{['#','Date','Invoice','Type','Qty','Branch','Transfer to'].map(h=><th key={h} style={{padding:'9px 12px',textAlign:'left',fontSize:10,fontWeight:600,color:'#706f6b',background:'#f7f7f5',borderBottom:'1px solid #e3e2dc',textTransform:'uppercase'}}>{h}</th>)}</tr></thead>
-            <tbody>{entries.filter(e=>e.model===selModel).sort((a,b)=>a.date?.localeCompare(b.date)).map((e,i)=><tr key={e.id||i}><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',color:'#a8a79f'}}>{i+1}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.date}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.invoice}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}><Badge label={e.type}/></td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',fontWeight:500,color:e.type!=='Stock in'?'#0C447C':'#27500A'}}>{e.type!=='Stock in'?'-':'+'}{e.qty}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.branch}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',color:'#706f6b'}}>{e.transferTo||'—'}</td></tr>)}</tbody>
+            <tbody>{entries.filter(e=>e.model===selModel).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map((e,i)=><tr key={e.id||i}><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',color:'#a8a79f'}}>{i+1}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.date}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.invoice}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}><Badge label={e.type}/></td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',fontWeight:500,color:e.type!=='Stock in'?'#0C447C':'#27500A'}}>{e.type!=='Stock in'?'-':'+'}{e.qty}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec'}}>{e.branch}</td><td style={{padding:'8px 12px',borderBottom:'1px solid #f0efec',color:'#706f6b'}}>{e.transferTo||'--'}</td></tr>)}</tbody>
           </table>
         </div>}
         {recTab==='customers'&&<Table cols={['#','Date','Bill no','Name','Phone','Village','Branch','Status']} rows={customers.filter(c=>c.model===selModel).map((c,i)=><TR key={c.id}><TD style={{color:'#a8a79f'}}>{i+1}</TD><TD>{c.date}</TD><TD style={{fontWeight:500,color:'#534AB7'}}>{c.billNo}</TD><TD style={{fontWeight:500}}>{c.name}</TD><TD style={{fontSize:11}}>{c.phone}</TD><TD style={{fontSize:11,color:'#706f6b'}}>{c.village}</TD><TD style={{fontSize:11}}>{c.branch}</TD><TD><Badge label={c.status}/></TD></TR>)}/>}
@@ -220,7 +224,7 @@ function AddStockModal({onClose,onSaved,models,role,branch}){
   const[stBranch,setStBranch]=useState(branch||'Maheshwaram');
   const[qty,setQty]=useState('');
   const[saving,setSaving]=useState(false);
-  async function save(){if(!date||!invoice||!model||!qty){notify('Fill all fields');return;}if(role==='stock_manager'&&date<today()){notify('Stock managers cannot backdate entries');return;}setSaving(true);try{if(newModel&&newModel!==model)await stockApi.addModel(newModel);await stockApi.addEntry({date,invoice,model:newModel||model,type:'Stock in',qty:parseInt(qty),branch:stBranch});notify('Stock entry saved!');onSaved();}catch(e){notify('Error: '+e.message);}finally{setSaving(false);}}
+  async function save(){if(!date||!invoice||!model||!qty){notify('Fill all fields');return;}if(role==='stock_manager'&&date<today()){notify('Stock managers cannot backdate entries');return;}setSaving(true);try{if(newModel&&!models.includes(newModel))await stockApi.addModel(newModel);await stockApi.addEntry({date,invoice,model:newModel||model,type:'Stock in',qty:parseInt(qty),branch:stBranch});notify('Stock entry saved!');onSaved();}catch(e){notify('Error: '+e.message);}finally{setSaving(false);}}
   return <Modal open title="Add stock entry" onClose={onClose}>
     <Field label="Date"><Input type="date" value={date} onChange={e=>setDate(e.target.value)}/></Field>
     <Field label="Invoice number"><Input value={invoice} onChange={e=>setInvoice(e.target.value)} placeholder="INV-2025-001"/></Field>
@@ -244,10 +248,9 @@ function TransferModal({onClose,onSaved,models,role,getTotal}){
       {items.map((it,i)=><div key={i} style={{display:'grid',gridTemplateColumns:'1fr 90px 26px',gap:6,alignItems:'center',marginBottom:6,padding:'7px 9px',background:'#f7f7f5',borderRadius:7,border:'1px solid #e3e2dc'}}>
         <Select value={it.model} onChange={e=>{const r=[...items];r[i].model=e.target.value;setItems(r);}} options={models}/>
         <Input type="number" value={it.qty} onChange={e=>{const r=[...items];r[i].qty=e.target.value;setItems(r);}} placeholder="Qty" style={{textAlign:'center'}}/>
-        <div onClick={()=>{if(items.length>1)setItems(items.filter((_,j)=>j!==i));}} style={{background:'#FCEBEB',color:'#A32D2D',border:'1px solid #F09595',borderRadius:5,cursor:'pointer',width:24,height:24,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>✕</div>
+        <div onClick={()=>{if(items.length>1)setItems(items.filter((_,j)=>j!==i));}} style={{background:'#FCEBEB',color:'#A32D2D',border:'1px solid #F09595',borderRadius:5,cursor:'pointer',width:24,height:24,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>X</div>
       </div>)}
     </Field>
-    <div style={{background:'#f7f7f5',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:11,color:'#706f6b'}}>Stock adjusts instantly on both branches upon saving.</div>
     <ModalActions onCancel={onClose} onSave={save} loading={saving} saveLabel="Confirm transfer"/>
   </Modal>;
 }
