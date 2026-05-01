@@ -131,7 +131,7 @@ export function Bookings(){
         <TD><div style={{display:'flex',gap:3}}>
           {b.status!=='delivered'&&<Btn variant="s" style={{fontSize:10,padding:'2px 6px'}} onClick={async()=>{await bookingsApi.update(b.id,{status:'delivered'});load();notify('Delivered!');}}>Delivered</Btn>}
           <Btn style={{fontSize:10,padding:'2px 6px'}} onClick={()=>setShowEdit(b)}>Edit</Btn>
-        <Btn variant="bk" style={{fontSize:10,padding:'2px 6px'}} onClick={()=>setShowDevices(e)}>Devices</Btn>
+       
           {role==='admin'&&<Btn variant="d" style={{fontSize:10,padding:'2px 6px'}} onClick={async()=>{await bookingsApi.remove(b.id);load();notify('Deleted.');}}>Del</Btn>}
         </div></TD>
       </TR>;
@@ -195,6 +195,7 @@ export function Employees(){
         <TD><Badge label={e.status==='active'?'active':'inactive'}/></TD>
         <TD><div style={{display:'flex',gap:3}}>
           <Btn style={{fontSize:10,padding:'2px 6px'}} onClick={()=>setShowEdit(e)}>Edit</Btn>
+            <Btn variant="bk" style={{fontSize:10,padding:'2px 6px'}} onClick={()=>setShowDevices(e)}>Devices</Btn>
           <Btn variant="w" style={{fontSize:10,padding:'2px 6px'}} onClick={async()=>{await employeesApi.update(e.id,{status:e.status==='active'?'inactive':'active'});load();}}>{e.status==='active'?'Deactivate':'Activate'}</Btn>
           <Btn variant="d" style={{fontSize:10,padding:'2px 6px'}} onClick={async()=>{await employeesApi.deleteUser(e.id);load();notify('Deleted.');}}>Delete</Btn>
         </div></TD>
