@@ -63,7 +63,7 @@ export default function Receipts(){
           <TD style={{fontSize:11,color:'#706f6b'}}>{r.village||'--'}, {r.mandal||'--'}</TD>
           <TD style={{fontSize:11}}>{r.model}</TD>
           <TD>Rs{fmt(r.soldPrice)}</TD>
-          <TD style={{color:'#27500A',fontWeight:500}}>Rs{fmt(r.amtPaid)}</TD>
+          <TD style={{color:'#27500A',fontWeight:500}}>Rs{fmt(r.amtPaid)}{r.isPayment&&<span style={{fontSize:9,background:'#EAF3DE',color:'#27500A',borderRadius:8,padding:'0 4px',marginLeft:3}}>payment</span>}</TD>
           <TD style={{color:r.balance>0?'#A32D2D':'#27500A',fontWeight:500}}>Rs{fmt(r.balance)}</TD>
           <TD><Badge label={r.mode==='Cash'?'Cash':'Bank transfer'}/></TD>
           <TD style={{fontSize:11}}>{r.branch}</TD>
