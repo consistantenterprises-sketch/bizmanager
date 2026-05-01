@@ -1,5 +1,5 @@
 import{useState,useEffect}from'react';
-import{receiptsApi,customersApi}from'../lib/api';
+import{receiptsApi,customersApi,stockApi}from'../lib/api';
 import{useAuth}from'../context/AuthContext';
 import{fmt,today,getNextBillNo,BRANCHES,isTrolley}from'../lib/utils';
 import{notify,Btn,Badge,Modal,Field,Input,Select,Grid2,ModalActions,Stats,FilterBar,FInput,FSelect,FSep,Table,TR,TD,SectionHeader,Loading,exportCSV}from'./ui';
@@ -130,6 +130,8 @@ function AddReceiptModal({onClose,onSaved,receipts,customers,role,branch}){
         if(!payMode){notify('Select payment mode');setSaving(false);return;}
         if(role==='branch_manager'&&date<today()){notify('Branch managers cannot backdate receipts');setSaving(false);return;}
         const modelSummary=modelRows.map(r=>r.model+(r.qty>1?' x'+r.qty:'')).join(', ');
+                  const[availModels,setAvailModels]=useState([]);
+const[stockEntries,setStockEntries]=useState([]);
        const custRef = await customersApi.create({date,billNo,name,phone,village,mandal,model:modelSummary,soldPrice:grand,totalPaid:parseFloat(paid)||0,branch:custBranch,status:'Pending',deliveredDate:null,models:modelRows});
 const custId = custRef.id;
 await receiptsApi.create({date,billNo,custId,name,village,mandal,model:modelSummary,models:modelRows,soldPrice:grand,amtPaid:parseFloat(paid)||0,balance,mode:payMode,bank:payMode==='Bank transfer'?bank:'',utr:payMode==='Bank transfer'?utr:'',branch:custBranch,isPayment:false});
@@ -170,7 +172,7 @@ await receiptsApi.create({date,billNo,custId,name,village,mandal,model:modelSumm
       <Field label="Branch">{role==='admin'?<Select value={custBranch} onChange={e=>setCustBranch(e.target.value)} options={BRANCHES}/>:<Input value={custBranch} readonly/>}</Field>
       <Field label={<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>Models <Btn variant="s" style={{fontSize:10,padding:'2px 7px'}} onClick={()=>setModelRows([...modelRows,{model:'Model A',qty:1,price:''}])}>+ Add model</Btn></div>}>
         {modelRows.map((row,i)=><div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 100px 26px',gap:6,alignItems:'center',marginBottom:6,padding:'7px 9px',background:'#f7f7f5',borderRadius:7,border:'1px solid #e3e2dc'}}>
-          <Input value={row.model} onChange={e=>{const r=[...modelRows];r[i].model=e.target.value;setModelRows(r);}} placeholder="Model name"/>
+          <select value={row.model} onChange={e=>{const r=[...modelRows];r[i].model=e.target.value;setModelRows(r);const st=getStock(e.target.value,custBranch);if(st===0)notify('Warning: No stock for '+e.target.value);else if(st<5)notify('Low stock: '+st+' units of '+e.target.value);}} style={{padding:'5px 8px',fontSize:12,border:'1px solid #d0cfc8',borderRadius:7,background:'#fff',flex:1}}><option value="">Select model</option>{availModels.map(m=>{const st=getStock(m,custBranch);return<option key={m} value={m} style={{color:st===0?'#A32D2D':st<5?'#BA7517':'inherit'}}>{m} {st===0?'(no stock)':st<5?'(low: '+st+')':'('+st+')'}</option>;})}</select>
           <Input type="number" value={row.qty} onChange={e=>{const r=[...modelRows];r[i].qty=e.target.value;setModelRows(r);}} style={{textAlign:'center'}}/>
           <Input type="number" value={row.price} onChange={e=>{const r=[...modelRows];r[i].price=e.target.value;setModelRows(r);}} placeholder="Price ₹" style={{textAlign:'right'}}/>
           <div onClick={()=>{if(modelRows.length>1)setModelRows(modelRows.filter((_,j)=>j!==i));}} style={{background:'#FCEBEB',color:'#A32D2D',border:'1px solid #F09595',borderRadius:5,cursor:'pointer',width:24,height:24,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>✕</div>
@@ -204,6 +206,10 @@ function EditReceiptModal({receipt,onClose,onSaved}){
   const[paid,setPaid]=useState(receipt.amtPaid||'');
   const[mode,setMode]=useState(receipt.mode||'');
   const[saving,setSaving]=useState(false);
+   const[availModels,setAvailModels]=useState([]);
+const[stockEntries,setStockEntries]=useState([]);
+useEffect(()=>{stockApi.models().then(m=>setAvailModels(m||[])).catch(()=>{});stockApi.entries().then(e=>setStockEntries(e||[])).catch(()=>{});},[]);
+function getStock(model,br){let t=0;stockEntries.forEach(e=>{if(e.model!==model)return;if(e.type==='Stock in'&&e.branch===br)t+=e.qty||0;else if(e.type==='Transfer'&&e.branch===br)t-=e.qty||0;else if(e.type==='Transfer'&&e.transferTo===br)t+=e.qty||0;else if(e.type==='Stock out'&&e.branch===br)t-=e.qty||0;});return Math.max(0,t);}               
   const bal=(parseFloat(sold)||0)-(parseFloat(paid)||0);
   async function save(){setSaving(true);try{await receiptsApi.update(receipt.id,{date,soldPrice:parseFloat(sold),amtPaid:parseFloat(paid),balance:bal,mode});notify('Updated!');onSaved();}catch(e){notify('Error: '+e.message);}finally{setSaving(false);}}
   return <Modal open title="Edit receipt" onClose={onClose}>
