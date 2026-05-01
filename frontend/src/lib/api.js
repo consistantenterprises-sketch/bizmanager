@@ -50,7 +50,7 @@ export const stockApi = {
   addTransfer: (data) => api.post('/stock/transfers', data),
   deleteTransfer: (id) => api.delete(`/stock/transfers/${id}`),
   models: () => api.get('/stock/models'),
-  addModel: (name) => api.post('/stock/models', { name }),
+  deleteModel: (name) => api.delete(`/stock/models/${encodeURIComponent(name)}`),
 };
 export const expensesApi = {
   list: () => api.get('/expenses'),

@@ -1,0 +1,11 @@
+{
+  "indexes": [
+    {"collectionGroup":"receipts","queryScope":"COLLECTION","fields":[{"fieldPath":"branch","order":"ASCENDING"},{"fieldPath":"date","order":"DESCENDING"}]},
+    {"collectionGroup":"customers","queryScope":"COLLECTION","fields":[{"fieldPath":"branch","order":"ASCENDING"},{"fieldPath":"date","order":"DESCENDING"}]},
+    {"collectionGroup":"expenses","queryScope":"COLLECTION","fields":[{"fieldPath":"branch","order":"ASCENDING"},{"fieldPath":"date","order":"DESCENDING"}]},
+    {"collectionGroup":"deposits","queryScope":"COLLECTION","fields":[{"fieldPath":"branch","order":"ASCENDING"},{"fieldPath":"date","order":"DESCENDING"}]},
+    {"collectionGroup":"bookings","queryScope":"COLLECTION","fields":[{"fieldPath":"branch","order":"ASCENDING"},{"fieldPath":"date","order":"DESCENDING"}]},
+    {"collectionGroup":"stockEntries","queryScope":"COLLECTION","fields":[{"fieldPath":"branch","order":"ASCENDING"},{"fieldPath":"date","order":"DESCENDING"}]}
+  ],
+  "fieldOverrides": []
+}

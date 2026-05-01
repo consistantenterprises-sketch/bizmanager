@@ -115,5 +115,16 @@ router.post('/models', requireRole('admin', 'stock_manager'), async (req, res) =
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
+// DELETE model — admin only
+router.delete('/models/:name', requireRole('admin'), async (req, res) => {
+  try {
+    const db = getDb();
+    const ref = db.collection('config').doc('models');
+    const snap = await ref.get();
+    const current = snap.exists ? snap.data().list : [];
+    const updated = current.filter(m => m !== decodeURIComponent(req.params.name));
+    await ref.set({ list: updated });
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 module.exports = router;
