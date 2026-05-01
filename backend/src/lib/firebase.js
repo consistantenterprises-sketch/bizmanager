@@ -22,10 +22,11 @@ function initFirebase() {
 
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    projectId: process.env.FIREBASE_PROJECT_ID,
+    databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`,
   });
 
   db = admin.firestore();
+  db.settings({ ignoreUndefinedProperties: true });
   console.log('Firebase Admin initialized ✓');
 }
 
@@ -33,4 +34,3 @@ function getDb() { if (!db) throw new Error('Firebase not initialized'); return 
 function getAdmin() { return admin; }
 
 module.exports = { initFirebase, getDb, getAdmin };
-
